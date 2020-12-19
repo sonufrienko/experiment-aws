@@ -1,2 +1,3 @@
-# experiment-aws
-Experiments with AWS services. Architecture and DevOps ideas.
+![Cloud Architecture](cloud-architecture.png 'Cloud Architecture')
+
+# AWS Cloud Architecture and DevOps ideas
