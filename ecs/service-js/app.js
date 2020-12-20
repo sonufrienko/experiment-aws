@@ -20,6 +20,7 @@ const testRoute = async (req, res) => {
   try {
     const ip = await getMyIp();
     res.send({
+      version: 'v3',
       message: 'UP',
       uptime: Math.round(process.uptime()),
       public_ip: ip,
