@@ -1,0 +1,182 @@
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+  InstaceType:
+    Type: String
+    Default: t3.nano
+  ImageId:
+    Type: String
+    Default: ami-0f824828dba044722
+  Subnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: The list of SubnetIds in your VPC
+
+Resources:
+  AsgRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+
+  AsgInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    DependsOn: AsgRole
+    Properties:
+      Roles:
+        - !Ref AsgRole
+
+  AsgLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: AsgLaunchTemplate
+      LaunchTemplateData:
+        BlockDeviceMappings:
+          - DeviceName: "/dev/xvda"
+            Ebs:
+              DeleteOnTermination: "true"
+              VolumeSize: 9
+              VolumeType: gp2
+        KeyName: !Ref KeyName
+        IamInstanceProfile:
+          Name: !Ref AsgInstanceProfile
+        ImageId: !Ref ImageId
+        InstanceType: !Ref InstaceType
+        InstanceMarketOptions:
+          MarketType: spot
+          SpotOptions:
+            MaxPrice: 0.035
+        SecurityGroupIds:
+          - !Ref WebSecurityGroup
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash
+            # Install packages
+
+  ALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP/HTTPS from internet
+      GroupName: AlbSG
+      Tags:
+        - Key: Name
+          Value: AlbSG
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          FromPort: 80
+          ToPort: 80
+          IpProtocol: tcp
+        - CidrIp: 0.0.0.0/0
+          FromPort: 443
+          ToPort: 443
+          IpProtocol: tcp
+      VpcId: !Ref VpcId
+
+  WebSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP from ALB SG
+      GroupName: WebSG
+      Tags:
+        - Key: Name
+          Value: WebSG
+      SecurityGroupIngress:
+        - SourceSecurityGroupId: !Ref ALBSecurityGroup
+          FromPort: 80
+          ToPort: 80
+          IpProtocol: tcp
+      VpcId: !Ref VpcId
+
+  AsgALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    DependsOn: ALBSecurityGroup
+    Properties:
+      Name: AsgALB
+      Scheme: internet-facing
+      SecurityGroups:
+        - !Ref ALBSecurityGroup
+      Subnets: !Ref Subnets
+
+  AsgALBTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 60
+      HealthCheckPath: /
+      HealthCheckPort: 80
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      Matcher:
+        HttpCode: 200
+      Name: AsgALBTargetGroup
+      Port: 80
+      Protocol: HTTP
+      UnhealthyThresholdCount: 4
+      VpcId: !Ref VpcId
+
+  AsgALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    DependsOn:
+      - AsgALB
+      - AsgALBTargetGroup
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref AsgALBTargetGroup
+      LoadBalancerArn: !Ref AsgALB
+      Port: 80
+      Protocol: HTTP
+
+  AsgALBListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    DependsOn:
+      - AsgALBListener
+      - AsgALBTargetGroup
+    Properties:
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref AsgALBTargetGroup
+      Conditions:
+        - Field: path-pattern
+          Values:
+            - "/*"
+      ListenerArn: !Ref AsgALBListener
+      Priority: 1
+
+  AsgScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: AsgScalingGroup
+      Cooldown: 240
+      HealthCheckGracePeriod: 10
+      HealthCheckType: ELB
+      DesiredCapacity: 2
+      MinSize: 2
+      MaxSize: 5
+      LaunchTemplate:
+        LaunchTemplateId: !Ref AsgLaunchTemplate
+        Version: !GetAtt AsgLaunchTemplate.LatestVersionNumber
+      TargetGroupARNs:
+        - !Ref AsgALBTargetGroup
+      VPCZoneIdentifier: !Ref Subnets
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MinInstancesInService: 0
+        MaxBatchSize: 1
+        WaitOnResourceSignals: false
+
+Outputs:
+  ALB:
+    Description: The DNS name of the ALB
+    Value: !GetAtt AsgALB.DNSName
