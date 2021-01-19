@@ -63,6 +63,11 @@ Resources:
           Fn::Base64: !Sub |
             #!/bin/bash
             # Install packages
+        TagSpecifications:
+          - ResourceType: instance
+            Tags: 
+              - Key: Name
+                Value: AsgInstance
 
   ALBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
