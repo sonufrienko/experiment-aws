@@ -8,7 +8,7 @@ Parameters:
     Default: t3.nano
   ImageId:
     Type: String
-    Default: ami-0f824828dba044722
+    Default: ami-094930d1ad697622b # Ubuntu 20 LTS, SSM, CodeDeploy, Node, Python, Nginx
   Subnets:
     Type: List<AWS::EC2::Subnet::Id>
     Description: The list of SubnetIds in your VPC
