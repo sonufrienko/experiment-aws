@@ -6,13 +6,13 @@ Setup ECR, ECS and CodePipeline.
 
 ```shell
 npm run build
-npm run cdk synth
+cdk synth
 ```
 
 ## 2. Create ECR
 
 ```shell
-npm run cdk deploy ecr-stack
+cdk deploy 'ecr-service-*'
 ```
 
 ## 3. Build and push to ECR
@@ -21,18 +21,12 @@ npm run cdk deploy ecr-stack
 cd service-js
 follow push commands
 
-cd service-js
+cd service-py
 follow push commands
 ```
 
-## 4. Create a services
+## 4. Create ECS
 
 ```shell
-npm run cdk deploy ecs-stack
-```
-
-## 5. Create CI/CD (todo)
-
-```shell
-npm run cdk deploy pipeline-stack
+cdk deploy ecs
 ```
