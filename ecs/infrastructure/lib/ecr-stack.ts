@@ -1,16 +1,21 @@
 import * as cdk from '@aws-cdk/core';
 import * as ecr from '@aws-cdk/aws-ecr';
-import { ServiceStackProps } from './types';
+
+export interface EcrStackProps extends cdk.StackProps {
+  repositoryName: string;
+}
 
 export class EcrStack extends cdk.Stack {
-  constructor(scope: cdk.Construct, id: string, props: ServiceStackProps) {
+  public readonly repository: ecr.Repository;
+
+  constructor(scope: cdk.Construct, id: string, props: EcrStackProps) {
     super(scope, id, props);
 
-    for (const service of props.services) {
-      const repository = new ecr.Repository(this, `Repository-${service.name}`, {
-        repositoryName: service.name,
-        imageScanOnPush: true,
-      });
-    }
+    const { repositoryName } = props;
+
+    this.repository = new ecr.Repository(this, `ECR-${repositoryName}`, {
+      repositoryName,
+      imageScanOnPush: true,
+    });
   }
 }
