@@ -21,14 +21,33 @@ export class EcsStack extends cdk.Stack {
 
     this.cluster = this.createCluster('devops-ecs');
     this.alb = this.createLoadBalancer('devops-ecs-alb', this.cluster.vpc);
-    const listener = this.alb.addListener('Listener', { port: 80, open: true });
 
-    const serviceJs = this.createService(this.cluster, serviceJsRepository, listener, 'ServiceJs', 4000, '/test', {
+    const serviceJs = this.createService(this.cluster, serviceJsRepository, 'ServiceJs', 4000, {
       VAR_B: 'Value for var B',
     });
 
-    const servicePy = this.createService(this.cluster, servicePyRepository, listener, 'ServicePy', 80, '/py/test', {
+    const servicePy = this.createService(this.cluster, servicePyRepository, 'ServicePy', 80, {
       VAR_PY: 'Value for var PY',
+    });
+
+    const listener = this.alb.addListener('Listener', { port: 80, open: true });
+
+    listener.addTargets('JS', {
+      port: 80,
+      targets: [serviceJs],
+      healthCheck: {
+        path: '/test',
+      },
+    });
+
+    listener.addTargets('PY', {
+      port: 80,
+      priority: 2,
+      conditions: [elbv2.ListenerCondition.pathPatterns(['/py/*'])],
+      targets: [servicePy],
+      healthCheck: {
+        path: '/py/test',
+      },
     });
   }
 
@@ -54,10 +73,8 @@ export class EcsStack extends cdk.Stack {
   createService(
     cluster: ecs.Cluster,
     repository: ecr.Repository,
-    listener: elbv2.ApplicationListener,
     serviceName: string,
     containerPort: number,
-    healthCheckPath: string,
     environment?: {
       [key: string]: string;
     }
@@ -101,23 +118,8 @@ export class EcsStack extends cdk.Stack {
       targetUtilizationPercent: 10,
     });
 
-    /**
-     * Add to LoadBalancer
-     */
-    service.registerLoadBalancerTargets({
-      containerName,
-      containerPort,
-      newTargetGroupId: `TargetGroup${serviceName}`,
-      listener: ecs.ListenerConfig.applicationListener(listener, {
-        protocol: elbv2.ApplicationProtocol.HTTP,
-        targetGroupName: `tg-${serviceName}`,
-        healthCheck: {
-          path: healthCheckPath,
-          interval: cdk.Duration.seconds(60),
-        },
-      }),
-    });
-
     return service;
   }
 }
+
+//   buildSpecFilePath: 'ecs/service-js/buildspec.yml',
