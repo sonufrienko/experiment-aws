@@ -51,6 +51,8 @@ export class EcsStack extends cdk.Stack {
       targets: [serviceJs],
       healthCheck: {
         path: '/test',
+        timeout: cdk.Duration.seconds(60),
+        interval: cdk.Duration.seconds(61),
       },
     });
 
@@ -61,6 +63,8 @@ export class EcsStack extends cdk.Stack {
       targets: [servicePy],
       healthCheck: {
         path: '/py/test',
+        timeout: cdk.Duration.seconds(60),
+        interval: cdk.Duration.seconds(61),
       },
     });
   }
