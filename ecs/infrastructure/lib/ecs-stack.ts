@@ -3,7 +3,7 @@ import * as ecs from '@aws-cdk/aws-ecs';
 import * as ecr from '@aws-cdk/aws-ecr';
 import * as ec2 from '@aws-cdk/aws-ec2';
 import * as elbv2 from '@aws-cdk/aws-elasticloadbalancingv2';
-import * as ecsPatterns from '@aws-cdk/aws-ecs-patterns';
+import { EcsPipeline } from './ecsPipeline';
 
 export interface EcsServiceStackProps extends cdk.StackProps {
   serviceJsRepository: ecr.Repository;
@@ -22,13 +22,27 @@ export class EcsStack extends cdk.Stack {
     this.cluster = this.createCluster('devops-ecs');
     this.alb = this.createLoadBalancer('devops-ecs-alb', this.cluster.vpc);
 
-    const serviceJs = this.createService(this.cluster, serviceJsRepository, 'ServiceJs', 4000, {
-      VAR_B: 'Value for var B',
-    });
+    const serviceJs = this.createService(
+      this.cluster,
+      serviceJsRepository,
+      'ServiceJs',
+      4000,
+      'ecs/service-js/buildspec.yml',
+      {
+        VAR_B: 'Value for var B',
+      }
+    );
 
-    const servicePy = this.createService(this.cluster, servicePyRepository, 'ServicePy', 80, {
-      VAR_PY: 'Value for var PY',
-    });
+    const servicePy = this.createService(
+      this.cluster,
+      servicePyRepository,
+      'ServicePy',
+      80,
+      'ecs/service-py/buildspec.yml',
+      {
+        VAR_PY: 'Value for var PY',
+      }
+    );
 
     const listener = this.alb.addListener('Listener', { port: 80, open: true });
 
@@ -75,6 +89,7 @@ export class EcsStack extends cdk.Stack {
     repository: ecr.Repository,
     serviceName: string,
     containerPort: number,
+    buildSpecFilePath: string,
     environment?: {
       [key: string]: string;
     }
@@ -118,8 +133,15 @@ export class EcsStack extends cdk.Stack {
       targetUtilizationPercent: 10,
     });
 
+    const pipeline = new EcsPipeline(this, `EcsPipeline${serviceName}`, {
+      ecrRepository: repository,
+      ecsService: service,
+      awsAccountId: this.account,
+      serviceName,
+      containerName,
+      buildSpecFilePath,
+    });
+
     return service;
   }
 }
-
-//   buildSpecFilePath: 'ecs/service-js/buildspec.yml',
