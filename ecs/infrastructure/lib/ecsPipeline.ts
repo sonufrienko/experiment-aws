@@ -11,6 +11,7 @@ export interface EcsPipelineProps {
   ecsService: ecs.IBaseService;
   awsAccountId: string;
   serviceName: string;
+  containerName: string;
   buildSpecFilePath: string;
 }
 
@@ -20,7 +21,7 @@ export class EcsPipeline extends cdk.Construct {
   constructor(scope: cdk.Construct, id: string, props: EcsPipelineProps) {
     super(scope, id);
 
-    const { ecrRepository, ecsService, awsAccountId, serviceName, buildSpecFilePath } = props;
+    const { ecrRepository, ecsService, awsAccountId, serviceName, buildSpecFilePath, containerName } = props;
 
     /**
      * GitHub
@@ -69,11 +70,14 @@ export class EcsPipeline extends cdk.Construct {
         COMMIT_URL: {
           value: sourceAction.variables.commitUrl,
         },
+        CONTAINER_NAME: {
+          value: containerName,
+        },
       },
     });
 
     const deployAction = new codepipelineActions.EcsDeployAction({
-      actionName: 'Deploy to ECS',
+      actionName: 'Deploy',
       input: buildOutput,
       service: ecsService,
       deploymentTimeout: cdk.Duration.minutes(60),
