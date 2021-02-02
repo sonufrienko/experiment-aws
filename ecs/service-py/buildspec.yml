@@ -17,7 +17,7 @@ phases:
     commands:
       - docker push $REPOSITORY_URI:latest
       - docker push $REPOSITORY_URI:$IMAGE_TAG
-      - printf '[{"name":"service-py","imageUri":"%s"}]' $REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
+      - printf '[{"name":"$CONTAINER_NAME","imageUri":"%s"}]' $REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
       # - aws ssm put-parameter --name ssmImageTagParamName --value $CODEBUILD_RESOLVED_SOURCE_VERSION --type String --overwrite
 artifacts:
   files: imagedefinitions.json
